@@ -1,3 +1,3 @@
 # OSM2VCF
 
-Userscript for easily downloading OpenStreetMap node data as a vCard.
+A [userscript](https://en.wikipedia.org/wiki/Userscript_manager) for easily downloading [OpenStreetMap](https://www.openstreetmap.org/) node data as a [vCard](https://en.wikipedia.org/wiki/VCard).
