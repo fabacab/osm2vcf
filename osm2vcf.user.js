@@ -8,7 +8,7 @@
 // @description Download OSM node/way data as a vCard.
 // @include     https://www.openstreetmap.org/node/*
 // @include     https://www.openstreetmap.org/way/*
-// @version     1.1.1
+// @version     1.1.2
 // @updateURL   https://github.com/meitar/osm2vcf/raw/master/osm2vcf.user.js
 // @grant       GM.xmlHttpRequest
 // ==/UserScript==
@@ -18,6 +18,8 @@ CONFIG = {};
 
 CONFIG.api_anchor = document.querySelector('[href^="/api"]');
 CONFIG.api_url = CONFIG.api_anchor.getAttribute('href');
+
+CONFIG.download_button = createDownloadLink();
 
 CONFIG.vCard = {};
 CONFIG.vCard.version = '3.0';
@@ -32,7 +34,7 @@ function createDownloadLink () {
     dl_btn.addEventListener('click', main);
     dl_btn.innerText = 'Download VCF';
     dl_btn.setAttribute('href', '#')
-    dl_btn.setAttribute('download', window.location.pathname.match(/\d*$/) + '.vcf')
+    dl_btn.setAttribute('download', window.location.pathname.match(/\d*$/))
     return dl_btn;
 }
 
@@ -40,7 +42,7 @@ function createDownloadLink () {
  * Initialize the UI by creating a download link.
  */
 function init () {
-    CONFIG.api_anchor.insertAdjacentElement('afterend', createDownloadLink());
+    CONFIG.api_anchor.insertAdjacentElement('afterend', CONFIG.download_button);
     CONFIG.api_anchor.insertAdjacentHTML('afterend', ' · ');
 }
 
@@ -192,9 +194,11 @@ function main (e) {
         'synchronous': true,
         'url': window.location.protocol + '//' + window.location.host + CONFIG.api_url,
         'onload': function (response) {
-            window.location = 'data:text/vcard,' + encodeURI(
+            var b = new Blob([
                 vCardWriter(osm2vcf(parseApiResponse(response)))
-            );
+            ], { 'type': 'text/vcard' });
+            CONFIG.download_button.setAttribute('href', URL.createObjectURL(b));
+            window.location = CONFIG.download_button.getAttribute('href');
         }
     });
 }
