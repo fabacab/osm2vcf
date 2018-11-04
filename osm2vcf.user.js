@@ -7,7 +7,8 @@
 // @author      maymay <bitetheappleback@gmail.com>
 // @description Download OSM node/way data as a vCard.
 // @include     https://www.openstreetmap.org/node/*
-// @version     1
+// @include     https://www.openstreetmap.org/way/*
+// @version     1.1
 // @updateURL   https://github.com/meitar/osm2vcf/raw/master/osm2vcf.user.js
 // @grant       GM.xmlHttpRequest
 // ==/UserScript==
@@ -73,10 +74,14 @@ function parseApiResponse (response) {
                 .getAttribute('v');
         }
     }
-    var keys = ['lat', 'lon'];
-    for (var i = 0; i < keys.length; i++) {
-        r[keys[i]] = el.querySelector('node')
-            .getAttribute(keys[i]);
+
+    // Only OSM Nodes have individual lat/lon info.
+    if (el.querySelector('node')) {
+        var keys = ['lat', 'lon'];
+        for (var i = 0; i < keys.length; i++) {
+            r[keys[i]] = el.querySelector('node')
+                .getAttribute(keys[i]);
+        }
     }
     return r;
 }
@@ -90,7 +95,6 @@ function parseApiResponse (response) {
 function osm2vcf (osm) {
     var vcf = {};
     vcf['KIND'] = 'org';
-    vcf['GEO'] = osm.lat + ',' + osm.lon;
 
     keys = Object.keys(osm);
 
@@ -109,6 +113,9 @@ function osm2vcf (osm) {
         ].join(';');
     }
 
+    if (osm.lat) {
+        vcf['GEO'] = osm.lat + ',' + osm.lon;
+    }
     if (osm.name) {
         vcf['ORG'] = osm.name;
     }
