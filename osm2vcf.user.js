@@ -8,7 +8,7 @@
 // @description Download OSM node/way data as a vCard.
 // @include     https://www.openstreetmap.org/node/*
 // @include     https://www.openstreetmap.org/way/*
-// @version     1.1
+// @version     1.1.1
 // @updateURL   https://github.com/meitar/osm2vcf/raw/master/osm2vcf.user.js
 // @grant       GM.xmlHttpRequest
 // ==/UserScript==
@@ -145,8 +145,13 @@ function vCardWriter (data) {
     vcf_string += "\r\nVERSION:" + CONFIG.vCard.version;
     vcf_string += "\r\nPRODID:OSM2VCF Userscript";
     vcf_string += "\r\nREV:" + new Date().toISOString();
-    vcf_string += "\r\nGEO:" + data.GEO;
 
+    if (data.KIND) {
+        vcf_string += "\r\nKIND:" + data.KIND;
+    }
+    if (data.GEO) {
+        vcf_string += "\r\nGEO:" + data.GEO;
+    }
     if (data.ADR) {
         vcf_string += "\r\nADR:" + data.ADR;
     }
