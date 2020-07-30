@@ -8,4 +8,4 @@ To install this script:
 1. [Click here](https://github.com/meitar/osm2vcf/raw/master/osm2vcf.user.js).
 1. Confirm the installation, usually by pressing the "`Allow`," "`Install`," or "`OK`" button in the dialogue window that opens.
 
-To use this script, navigate to any [node](https://wiki.openstreetmap.org/wiki/Node) or [way](https://wiki.openstreetmap.org/wiki/Way) on OpenStreetMap's Web interface.
+To use this script, navigate to any [node](https://wiki.openstreetmap.org/wiki/Node), [way](https://wiki.openstreetmap.org/wiki/Way) or [relation](https://wiki.openstreetmap.org/wiki/Relation) on OpenStreetMap's Web interface.
