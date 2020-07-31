@@ -10,8 +10,6 @@
 // @include     https://www.openstreetmap.org/way/*
 // @version     1.1.2
 // @updateURL   https://github.com/meitar/osm2vcf/raw/master/osm2vcf.user.js
-// @include     https://www.openstreetmap.org/relation/*
-// @version     1.2.0
 // @grant       GM.xmlHttpRequest
 // ==/UserScript==
 
@@ -48,60 +46,6 @@ function init () {
     CONFIG.api_anchor.insertAdjacentHTML('afterend', ' · ');
 }
 
-/** Put the content on the link */
-function setContent(content) {
-            var b = new Blob([
-                vCardWriter(osm2vcf(content))
-            ], { 'type': 'text/vcard' });
-            CONFIG.download_button.setAttribute('href', URL.createObjectURL(b));
-            window.location = CONFIG.download_button.getAttribute('href');
-}
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-/** Set the output location to be roughly the middle of the locations of all the nodes */
-async function addLocationFromNodes (elementWithNodes, responseStructure) {
-  let minLat = 180.0;
-  let maxLat = -180.0;
-  let minLon = 180.0;
-  let maxLon = -180.0;
-	let count = 0.0;
-	let allNodes = elementWithNodes.querySelectorAll('nd');
-  for(var n = 0; n < allNodes.length; n++) {
-    let nd = allNodes[n];
-		let baseUrl = window.location.protocol + '//' + window.location.host +
-                					CONFIG.api_url.substring(0, CONFIG.api_url.indexOf(CONFIG.api_url.match(/relation|way/)[0]));
-		let ndUrl = baseUrl + 'node/' + nd.getAttribute('ref');
-		GM.xmlHttpRequest({
-			'method': 'GET',
-			'synchronous': true,
-			'url': ndUrl,
-			'onload': function (wayResponse) {
-        var ndDom = wayResponse.responseXML.documentElement;
-        count += 1;
-        if (ndDom.querySelector('node')) {
-          var keys = ['lat', 'lon'];
-          let lat = parseFloat(ndDom.querySelector('node').getAttribute('lat'));
-          let lon = parseFloat(ndDom.querySelector('node').getAttribute('lon'));
-          if (lat < minLat) minLat = lat;
-          if (lat > maxLat) maxLat = lat;
-          if (lon < minLon) minLon = lon;
-          if (lon > maxLon) maxLon = lon;
-        }
-			}
-		});
-	}
-  while (count < allNodes.length) {
-    await sleep(100);
-  }
-	responseStructure['lat'] = ((minLat + maxLat) / 2).toFixed(7);
-	responseStructure['lon'] = ((minLon + maxLon) / 2).toFixed(7);
-	setContent(responseStructure);
-}
-
-
 /**
  * Receives the XMLHttpRequest response from the OSM API server.
  *
@@ -114,7 +58,6 @@ function parseApiResponse (response) {
     var el = response.responseXML.documentElement;
     var keys = [
         'addr:city',
-        'addr:place',
         'addr:housenumber',
         'addr:postcode',
         'addr:state',
@@ -141,27 +84,8 @@ function parseApiResponse (response) {
             r[keys[i]] = el.querySelector('node')
                 .getAttribute(keys[i]);
         }
-  	setContent(r);
-    } else {
-      	// If we have something with ways, pick the first way and set the location based on its centre
-      	if (el.querySelector('member[type="way"]')) {
-            let baseUrl = window.location.protocol + '//' + window.location.host +
-                					CONFIG.api_url.substring(0,
-                                       CONFIG.api_url.indexOf(CONFIG.api_url.match(/relation|way/)[0]));
-            let wayUrl = baseUrl + 'way/' + el.querySelector('member[type="way"]').getAttribute('ref');
-            GM.xmlHttpRequest({
-			        'method': 'GET',
-              'synchronous': true,
-        			'url': wayUrl,
-        			'onload': function (wayResponse) {
-            		addLocationFromNodes(wayResponse.responseXML.documentElement, r);
-			        }
-    				});
-        } else {
-          // If we have something with nodes, set the location based on the centre of the nodes
-         addLocationFromNodes(el, r);
-        }
     }
+    return r;
 }
 
 /**
@@ -184,7 +108,7 @@ function osm2vcf (osm) {
             '',
             osm['addr:housenumber'] || '',
             osm['addr:street'] || '',
-            osm['addr:city'] || osm['addr:place'] || '',
+            osm['addr:city'] || '',
             osm['addr:state'] || '',
             osm['addr:postcode'] || '',
             osm['addr:country'] || ''
@@ -270,7 +194,11 @@ function main (e) {
         'synchronous': true,
         'url': window.location.protocol + '//' + window.location.host + CONFIG.api_url,
         'onload': function (response) {
-          parseApiResponse(response);
+            var b = new Blob([
+                vCardWriter(osm2vcf(parseApiResponse(response)))
+            ], { 'type': 'text/vcard' });
+            CONFIG.download_button.setAttribute('href', URL.createObjectURL(b));
+            window.location = CONFIG.download_button.getAttribute('href');
         }
     });
 }
