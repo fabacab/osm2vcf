@@ -86,28 +86,10 @@ function parseApiResponse (response) {
         }
     }
 
-    // Only OSM Nodes have individual lat/lon info.
-    if (el.getAttribute('lat') && el.getAttribute('lon')) {
-        var keys = ['lat', 'lon'];
-        for (var i = 0; i < keys.length; i++) {
-            r[keys[i]] = el.getAttribute(keys[i]);
-        }
-        return r; // We've got an OSM Node, nothing more to do.
-    }
-
-    // Relations will have member Ways, from which we choose one.
-    var way = ('way' === el.tagName)
-        ? el // The requested object is a Way. Use it.
-        : d.querySelector( // Find the first member Way and use it.
-            '[id="' + el.querySelector('member[type="way"]').getAttribute('ref') + '"]'
-        );
-
-    // On the other hand, Ways will contain a list of member nodes.
     r['x-osm-member-nodes'] = [];
-    Array.from(way.querySelectorAll('nd[ref]')).map(function (x) {
-        return x.getAttribute('ref');
-    }).forEach(function (id) {
-        r['x-osm-member-nodes'].push(d.querySelector('[id="' + id + '"]'));
+    Array.from(d.querySelectorAll('node'))
+      .forEach(function (node) {
+        r['x-osm-member-nodes'].push(node);
     });
 
     return r;
@@ -126,10 +108,6 @@ function parseApiResponse (response) {
  * @return {object} OSM-formatted object with guaranteed lat/lon.
  */
 function normalizeGeographicCenter (osm) {
-    if (osm.lat && osm.lon) {
-        return osm; // We already have a location.
-    }
-
     // We need to find the geographic center from the member nodes.
     var points = osm['x-osm-member-nodes'].map(function (el) {
         return {
