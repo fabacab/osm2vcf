@@ -4,11 +4,11 @@
  */
 // ==UserScript==
 // @name        OSM2VCF
-// @author      maymay <bitetheappleback@gmail.com>
 // @description Download OSM node/way data as a vCard.
 // @include     https://www.openstreetmap.org/node/*
+// @include     https://www.openstreetmap.org/relation/*
 // @include     https://www.openstreetmap.org/way/*
-// @version     1.1.2
+// @version     1.2.0
 // @updateURL   https://github.com/meitar/osm2vcf/raw/master/osm2vcf.user.js
 // @grant       GM.xmlHttpRequest
 // ==/UserScript==
@@ -55,7 +55,17 @@ function init () {
  * @return {object}
  */
 function parseApiResponse (response) {
-    var el = response.responseXML.documentElement;
+    var m  = response.finalUrl.match(/(node|way|relation)\/(\d+)(?:\/full)?/);
+    if (null === m) { throw 'Unrecognized API call.'; }
+
+    var id = m[2]; // OSM object ID.
+    var oe = m[1]; // OSM element type.
+
+    var r  = {};   // Return object.
+    var d  = response.responseXML.documentElement;
+    var el = d.querySelector(oe + '[id="'+ id +'"]');
+
+    // Find meaningful tags associated with the requested object.
     var keys = [
         'addr:city',
         'addr:housenumber',
@@ -68,7 +78,6 @@ function parseApiResponse (response) {
         'phone',
         'website',
     ];
-    var r = {}
     for (var i = 0; i < keys.length; i++) {
         if (el.querySelector('tag[k="' + keys[i] + '"]')) {
             r[keys[i]] = el
@@ -78,14 +87,74 @@ function parseApiResponse (response) {
     }
 
     // Only OSM Nodes have individual lat/lon info.
-    if (el.querySelector('node')) {
+    if (el.getAttribute('lat') && el.getAttribute('lon')) {
         var keys = ['lat', 'lon'];
         for (var i = 0; i < keys.length; i++) {
-            r[keys[i]] = el.querySelector('node')
-                .getAttribute(keys[i]);
+            r[keys[i]] = el.getAttribute(keys[i]);
         }
+        return r; // We've got an OSM Node, nothing more to do.
     }
+
+    // Relations will have member Ways, from which we choose one.
+    var way = ('way' === el.tagName)
+        ? el // The requested object is a Way. Use it.
+        : d.querySelector( // Find the first member Way and use it.
+            '[id="' + el.querySelector('member[type="way"]').getAttribute('ref') + '"]'
+        );
+
+    // On the other hand, Ways will contain a list of member nodes.
+    r['x-osm-member-nodes'] = [];
+    Array.from(way.querySelectorAll('nd[ref]')).map(function (x) {
+        return x.getAttribute('ref');
+    }).forEach(function (id) {
+        r['x-osm-member-nodes'].push(d.querySelector('[id="' + id + '"]'));
+    });
+
     return r;
+}
+
+/**
+ * Ensures lat/lon keys are included in the OSM object.
+ *
+ * OSM Node elements are the only OSM element that can be directly
+ * associated with geographic coordinates, but many meaningful OSM
+ * objects are represented as Ways or Relations. These objects have
+ * one or more member nodes, and this function ensures the passed
+ * object has a generally sensible geographic coordinate attached.
+ *
+ * @param {object} osm Object with OSM-formatted keys.
+ * @return {object} OSM-formatted object with guaranteed lat/lon.
+ */
+function normalizeGeographicCenter (osm) {
+    if (osm.lat && osm.lon) {
+        return osm; // We already have a location.
+    }
+
+    // We need to find the geographic center from the member nodes.
+    var points = osm['x-osm-member-nodes'].map(function (el) {
+        return {
+            'lat': el.getAttribute('lat'),
+            'lon': el.getAttribute('lon')
+        };
+    });
+
+    var min_lat = Math.min(...points.map(function (p) {
+        return p.lat;
+    }));
+    var max_lat = Math.max(...points.map(function (p) {
+        return p.lat;
+    }));
+    var min_lon = Math.min(...points.map(function (p) {
+        return p.lon;
+    }));
+    var max_lon = Math.max(...points.map(function (p) {
+        return p.lon;
+    }));
+
+    osm.lat = ((min_lat + max_lat) / 2).toFixed(7);
+    osm.lon = ((min_lon + max_lon) / 2).toFixed(7);
+
+    return osm;
 }
 
 /**
@@ -189,13 +258,26 @@ function main (e) {
     e.preventDefault();
     e.stopImmediatePropagation();
 
+    // Use the `/full` endpoint for an OSM Way or Relation.
+    // OSM Nodes don't have this endpoint, will return HTTP 404.
+    var url = window.location.protocol + '//' + window.location.host + CONFIG.api_url
+    if (-1 === CONFIG.api_url.indexOf('/node/')) {
+         url += '/full';
+    }
+
     GM.xmlHttpRequest({
         'method': 'GET',
         'synchronous': true,
-        'url': window.location.protocol + '//' + window.location.host + CONFIG.api_url,
+        'url': url,
         'onload': function (response) {
             var b = new Blob([
-                vCardWriter(osm2vcf(parseApiResponse(response)))
+                vCardWriter(
+                    osm2vcf(
+                        normalizeGeographicCenter(
+                            parseApiResponse(response)
+                        )
+                    )
+                )
             ], { 'type': 'text/vcard' });
             CONFIG.download_button.setAttribute('href', URL.createObjectURL(b));
             window.location = CONFIG.download_button.getAttribute('href');
