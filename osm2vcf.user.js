@@ -87,6 +87,19 @@ function parseApiResponse (response) {
     }
 
     r['x-osm-member-nodes'] = [];
+
+    // A relation may just be a collection of ways
+    // but some towns and cities have a node that is its centre.
+    // This is more meaningful than using the middle of the boundary.
+    if ('relation' === el.tagName) {
+        let nodes = el.querySelectorAll('member[type="node"]');
+        if (nodes.length == 1) {
+            r['x-osm-member-nodes'].push(d.querySelector('[id="' + nodes[0].getAttribute('ref') + '"'));
+            return r;
+        }
+    }
+
+    // otherwise add all nodes in the hierarchy to calculate the middle
     Array.from(d.querySelectorAll('node'))
       .forEach(function (node) {
         r['x-osm-member-nodes'].push(node);
