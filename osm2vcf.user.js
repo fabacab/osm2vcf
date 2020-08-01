@@ -4,7 +4,7 @@
  */
 // ==UserScript==
 // @name        OSM2VCF
-// @description Download OSM node/way data as a vCard.
+// @description Download OSM data as a vCard.
 // @include     https://www.openstreetmap.org/node/*
 // @include     https://www.openstreetmap.org/relation/*
 // @include     https://www.openstreetmap.org/way/*
