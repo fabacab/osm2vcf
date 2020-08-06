@@ -9,7 +9,7 @@
 // @include     https://www.openstreetmap.org/relation/*
 // @include     https://www.openstreetmap.org/way/*
 // @version     1.2.0
-// @updateURL   https://github.com/meitar/osm2vcf/raw/master/osm2vcf.user.js
+// @updateURL   https://github.com/fabacab/osm2vcf/raw/master/osm2vcf.user.js
 // @grant       GM.xmlHttpRequest
 // ==/UserScript==
 
